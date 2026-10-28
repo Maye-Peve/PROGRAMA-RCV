@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>RCV local · Programa de riesgo cardiovascular</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Inicio del tablero RCV">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <span class="brand-copy">
+          <strong>Programa RCV</strong>
+          <small>Consulta local de registros</small>
+        </span>
+      </a>
+      <div class="local-status"><span class="status-dot"></span> Solo en este equipo</div>
+    </header>
+
+    <main class="layout">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">DATOS DEL PROGRAMA</p>
+          <h1>Registros de riesgo cardiovascular</h1>
+          <p class="intro-copy">
+            Explora la hoja RCV del libro seleccionado. Esta aplicación abre el archivo en modo de solo lectura.
+          </p>
+        </div>
+        <div class="source-card">
+          <span class="source-icon" aria-hidden="true">XLSX</span>
+          <div>
+            <span class="source-label">Archivo de origen</span>
+            <strong id="sourceName">Cargando…</strong>
+            <small id="sourceUpdated"></small>
+          </div>
+        </div>
+      </section>
+
+      <section class="privacy-note" aria-label="Modo local">
+        <span class="privacy-icon" aria-hidden="true">⌂</span>
+        <p><strong>Modo local.</strong> El libro se lee en este equipo. La aplicación no lo carga a servicios externos ni guarda cambios en el Excel.</p>
+      </section>
+
+      <section class="metric-grid" aria-label="Resumen del archivo">
+        <article class="metric-card">
+          <span class="metric-label">Registros</span>
+          <strong id="recordCount">—</strong>
+          <small>filas con contenido en RCV</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Campos</span>
+          <strong id="fieldCount">—</strong>
+          <small>encabezados no vacíos</small>
+        </article>
+        <article class="metric-card metric-card-warning" id="formulaMetric">
+          <span class="metric-label">Referencias de TFG</span>
+          <strong id="formulaErrorCount">—</strong>
+          <small>resultados #REF! del archivo</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Hoja consultada</span>
+          <strong id="sheetName">—</strong>
+          <small id="otherSheets"></small>
+        </article>
+      </section>
+
+      <div class="source-warning" id="formulaWarning" hidden></div>
+
+      <section class="chart-section" aria-labelledby="basicChartTitle">
+        <div class="chart-section-heading">
+          <div>
+            <p class="eyebrow">VISTA GENERAL</p>
+            <h2 id="basicChartTitle">Distribución básica</h2>
+          </div>
+          <p>Conteos del total; diferencias entre mayúsculas y minúsculas se agrupan.</p>
+        </div>
+        <div id="basicCharts" class="chart-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="data-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">CONSULTA DE REGISTROS</p>
+            <h2>Base RCV</h2>
+          </div>
+          <span class="read-only-badge">Solo lectura</span>
+        </div>
+
+        <div class="toolbar">
+          <label class="search-box">
+            <span class="visually-hidden">Buscar en los registros</span>
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" maxlength="120" placeholder="Buscar en todos los campos…" autocomplete="off">
+            <button id="clearSearch" class="clear-search" type="button" aria-label="Limpiar búsqueda" title="Limpiar búsqueda">×</button>
+          </label>
+          <div id="filterControls" class="filter-controls"></div>
+          <details class="column-picker" id="columnPicker">
+            <summary>Campos visibles <span id="visibleCount"></span></summary>
+            <div class="column-menu">
+              <div class="column-menu-head">
+                <strong>Selecciona campos</strong>
+                <button id="resetColumns" type="button" class="text-button">Restablecer</button>
+              </div>
+              <input id="columnSearch" type="search" placeholder="Filtrar campos…" autocomplete="off">
+              <div id="columnOptions" class="column-options"></div>
+            </div>
+          </details>
+        </div>
+
+        <div class="table-wrap" tabindex="0" aria-label="Tabla desplazable de registros">
+          <table>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody">
+              <tr><td class="loading-cell">Leyendo el libro local…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="resultSummary" aria-live="polite">Cargando registros…</span>
+          <nav class="pagination" aria-label="Paginación">
+            <button id="previousPage" type="button" disabled>Anterior</button>
+            <span id="pageLabel">—</span>
+            <button id="nextPage" type="button" disabled>Siguiente</button>
+          </nav>
+        </div>
+      </section>
+      <footer class="page-footer">
+        <span>Valores leídos del libro, incluidas las fórmulas guardadas por Excel.</span>
+        <span>Las referencias rotas se muestran como incidencias del origen.</span>
+      </footer>
+    </main>
+
+    <dialog id="recordDialog" class="record-dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">DETALLE DE FILA</p>
+          <h2 id="dialogTitle">Registro</h2>
+        </div>
+        <button id="closeDialog" class="close-dialog" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <dl id="recordDetails" class="record-details"></dl>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
