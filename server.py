@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from io import BytesIO
 import json
 import math
 import mimetypes
@@ -13,7 +14,7 @@ from collections import Counter
 from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 import xml.etree.ElementTree as ET
 
 try:
@@ -28,6 +29,7 @@ ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 MAIN_SHEET = "RCV"
 MAX_REQUEST_BYTES = 16_384
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 MAX_PAGE_SIZE = 100
 FILTER_COLUMN_IDS = ("C", "D", "E", "CD")
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -58,7 +60,7 @@ def _resolve_sheet_xml(archive: zipfile.ZipFile, wanted_name: str) -> str:
     raise ValueError(f"No existe la hoja {wanted_name}.")
 
 
-def _last_populated_row(path: Path, sheet_name: str) -> int:
+def _last_populated_row(source: Path | bytes, sheet_name: str) -> int:
     """Find the last row with a value or formula, ignoring Excel's styled blank rows."""
     row_tag = f"{{{MAIN_NS}}}row"
     cell_tag = f"{{{MAIN_NS}}}c"
@@ -67,7 +69,8 @@ def _last_populated_row(path: Path, sheet_name: str) -> int:
     formula_tag = f"{{{MAIN_NS}}}f"
     last_row = 0
 
-    with zipfile.ZipFile(path) as archive:
+    archive_source = BytesIO(source) if isinstance(source, bytes) else source
+    with zipfile.ZipFile(archive_source) as archive:
         sheet_xml = _resolve_sheet_xml(archive, sheet_name)
         with archive.open(sheet_xml) as stream:
             for _, element in ET.iterparse(stream, events=("end",)):
@@ -135,19 +138,37 @@ def _choose_default_columns(columns: list[dict]) -> list[str]:
 
 
 class WorkbookData:
-    def __init__(self, path: Path):
-        if not path.is_file():
-            raise FileNotFoundError(f"No se encontró el archivo: {path}")
-        self.path = path.resolve()
+    def __init__(
+        self,
+        path: Path | None = None,
+        *,
+        workbook_bytes: bytes | None = None,
+        source_name: str | None = None,
+    ):
+        if workbook_bytes is None:
+            if path is None or not path.is_file():
+                raise FileNotFoundError(f"No se encontró el archivo: {path}")
+            self.path: Path | None = path.resolve()
+            self.source_name = self.path.name
+            self.last_modified = datetime.fromtimestamp(
+                self.path.stat().st_mtime
+            ).strftime("%Y-%m-%d %H:%M")
+            source: Path | bytes = self.path
+        else:
+            self.path = None
+            self.source_name = Path(source_name or "Libro.xlsx").name[:255]
+            self.last_modified = datetime.now().strftime("%Y-%m-%d %H:%M")
+            source = workbook_bytes
         self.records: list[dict] = []
         self.columns: list[dict] = []
         self.by_id: dict[str, dict] = {}
         self.sheet_names: list[str] = []
-        self._load()
+        self._load(source)
 
-    def _load(self) -> None:
+    def _load(self, source: Path | bytes) -> None:
+        workbook_source = BytesIO(source) if isinstance(source, bytes) else source
         workbook = openpyxl.load_workbook(
-            self.path, read_only=True, data_only=True, keep_links=False
+            workbook_source, read_only=True, data_only=True, keep_links=False
         )
         try:
             self.sheet_names = list(workbook.sheetnames)
@@ -155,7 +176,7 @@ class WorkbookData:
                 raise ValueError(f"El libro no contiene la hoja {MAIN_SHEET}.")
 
             sheet = workbook[MAIN_SHEET]
-            populated_last_row = _last_populated_row(self.path, MAIN_SHEET)
+            populated_last_row = _last_populated_row(source, MAIN_SHEET)
             if populated_last_row < 2:
                 raise ValueError(f"La hoja {MAIN_SHEET} no tiene filas de datos.")
             if populated_last_row > 250_000:
@@ -311,7 +332,7 @@ class WorkbookData:
 
     def metadata(self) -> dict:
         return {
-            "source_name": self.path.name,
+            "source_name": self.source_name,
             "sheet": MAIN_SHEET,
             "source_sheets": self.sheet_names,
             "record_count": len(self.records),
@@ -322,9 +343,7 @@ class WorkbookData:
             "default_columns": self.default_columns,
             "filters": self.filter_options,
             "basic_distributions": self.basic_distributions,
-            "last_modified": datetime.fromtimestamp(
-                self.path.stat().st_mtime
-            ).strftime("%Y-%m-%d %H:%M"),
+            "last_modified": self.last_modified,
         }
 
     def query(self, payload: dict) -> dict:
@@ -465,7 +484,8 @@ class LocalHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if not self._check_local_request():
             return
-        path = urlsplit(self.path).path
+        parsed_url = urlsplit(self.path)
+        path = parsed_url.path
         if path == "/api/meta":
             self._send_json(200, self.data.metadata())
             return
@@ -485,11 +505,15 @@ class LocalHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if not self._check_local_request():
             return
-        path = urlsplit(self.path).path
+        parsed_url = urlsplit(self.path)
+        path = parsed_url.path
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             self._send_json(400, {"error": "Solicitud inválida."})
+            return
+        if path == "/api/upload":
+            self._upload_workbook(content_length, parsed_url.query)
             return
         if content_length < 0 or content_length > MAX_REQUEST_BYTES:
             self._send_json(413, {"error": "La solicitud excede el límite local."})
@@ -519,6 +543,37 @@ class LocalHandler(BaseHTTPRequestHandler):
             return
         self._send_json(404, {"error": "No encontrado."})
 
+    def _upload_workbook(self, content_length: int, query: str) -> None:
+        if content_length <= 0:
+            self._send_json(400, {"error": "Selecciona un archivo Excel para cargar."})
+            return
+        if content_length > MAX_UPLOAD_BYTES:
+            self._send_json(413, {"error": "El archivo supera el límite local de 50 MB."})
+            return
+
+        filename = parse_qs(query).get("filename", ["Libro.xlsx"])[0]
+        filename = Path(filename).name[:255]
+        if Path(filename).suffix.casefold() not in {".xlsx", ".xlsm"}:
+            self._send_json(415, {"error": "Selecciona un libro .xlsx o .xlsm."})
+            return
+
+        workbook_bytes = self.rfile.read(content_length)
+        if len(workbook_bytes) != content_length:
+            self._send_json(400, {"error": "La carga del archivo quedó incompleta. Inténtalo de nuevo."})
+            return
+        try:
+            loaded_data = WorkbookData(
+                workbook_bytes=workbook_bytes,
+                source_name=filename,
+            )
+        except Exception as exc:
+            message = str(exc).strip() or "El libro no se pudo interpretar."
+            self._send_json(400, {"error": f"No se pudo cargar el Excel: {message}"})
+            return
+
+        type(self).data = loaded_data
+        self._send_json(200, loaded_data.metadata())
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -546,7 +601,7 @@ def main() -> None:
     )
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     url = f"http://127.0.0.1:{args.port}/"
-    print(f"Libro listo: {data.path.name}")
+    print(f"Libro listo: {data.source_name}")
     print(
         f"Hoja {MAIN_SHEET}: {len(data.records):,} registros, "
         f"{len(data.columns)} campos."

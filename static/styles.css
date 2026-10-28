@@ -49,8 +49,12 @@ h1 { margin-bottom: 10px; font-size: clamp(25px, 3vw, 34px); line-height: 1.15; 
 .source-card { min-width: 280px; display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
 .source-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 11px; color: #27776d; background: var(--teal-pale); font-size: 10px; font-weight: 900; }
 .source-card div { min-width: 0; display: grid; gap: 4px; }
+.source-file-info { flex: 1; }
 .source-label { color: var(--muted); font-size: 10px; }
 .source-card strong { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.file-action { justify-self: start; margin-top: 5px; padding: 6px 9px; border: 1px solid #cfe2df; border-radius: 7px; background: #f4faf9; color: var(--teal-dark); font-size: 10px; font-weight: 700; cursor: pointer; }
+.file-action:hover { background: var(--teal-pale); }
+.file-action.is-loading, .file-action[aria-disabled="true"] { pointer-events: none; opacity: .6; cursor: progress; }
 
 .privacy-note { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 13px 16px; border: 1px solid #cde4df; border-radius: 12px; background: #edf7f4; color: #325c5a; }
 .privacy-note p { margin: 0; font-size: 12px; line-height: 1.5; }

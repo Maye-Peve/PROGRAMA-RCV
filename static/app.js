@@ -326,6 +326,48 @@ async function start() {
   }
 }
 
+byId("workbookInput").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (!/\.(xlsx|xlsm)$/i.test(file.name)) {
+    showToast("Selecciona un archivo .xlsx o .xlsm.");
+    event.target.value = "";
+    return;
+  }
+
+  const button = document.querySelector('label[for="workbookInput"]');
+  button.classList.add("is-loading");
+  button.setAttribute("aria-disabled", "true");
+  button.textContent = "Cargando Excel…";
+  try {
+    const meta = await requestJson(
+      "/api/upload?filename=" + encodeURIComponent(file.name),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: file,
+      },
+    );
+    state.meta = meta;
+    state.page = 1;
+    state.search = "";
+    state.filters = {};
+    state.columns = meta.default_columns.slice();
+    byId("searchInput").value = "";
+    renderMetadata();
+    await loadRows();
+    showToast("Excel cargado: " + formatNumber(meta.record_count) + " registros.");
+  } catch (error) {
+    showToast(error.message || "No se pudo cargar el Excel.");
+  } finally {
+    event.target.value = "";
+    button.classList.remove("is-loading");
+    button.removeAttribute("aria-disabled");
+    button.textContent = "Seleccionar otro Excel";
+  }
+});
+
 byId("searchInput").addEventListener("input", (event) => {
   window.clearTimeout(state.searchTimer);
   state.searchTimer = window.setTimeout(() => {

@@ -31,10 +31,12 @@
         </div>
         <div class="source-card">
           <span class="source-icon" aria-hidden="true">XLSX</span>
-          <div>
+          <div class="source-file-info">
             <span class="source-label">Archivo de origen</span>
             <strong id="sourceName">Cargando…</strong>
             <small id="sourceUpdated"></small>
+            <label class="file-action" for="workbookInput">Seleccionar otro Excel</label>
+            <input id="workbookInput" class="visually-hidden" type="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12">
           </div>
         </div>
       </section>

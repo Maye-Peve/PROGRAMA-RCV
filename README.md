@@ -2,7 +2,7 @@
 
 Aplicación local de solo lectura para explorar la hoja RCV de un libro Excel. Los registros se leen en este equipo y se muestran en una interfaz de navegador servida únicamente en 127.0.0.1. El tablero incluye gráficos agregados de sexo, régimen y zonificación; los porcentajes incluyen los registros sin dato.
 
-La aplicación no edita el libro, no guarda copias de sus registros y no realiza solicitudes a servicios externos. Los datos se cargan en memoria mientras el servidor local está encendido.
+La aplicación no edita el libro, no guarda copias de sus registros y no realiza solicitudes a servicios externos. Los datos se cargan en memoria mientras el servidor local está encendido. Desde la interfaz puedes seleccionar otro `.xlsx` o `.xlsm`; se lee por la conexión local y el libro no se guarda.
 
 ## Iniciar en Windows
 
