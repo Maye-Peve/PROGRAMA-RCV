@@ -23,6 +23,16 @@ El servidor se detiene con Ctrl+C. Abre el navegador en http://127.0.0.1:8765/.
 
 La aplicación usa la hoja RCV, conserva las fórmulas guardadas como valores por Excel y muestra las referencias #REF! como incidencias. No recalcula medidas ni aplica umbrales clínicos. El libro conserva otras hojas, pero la primera versión solo presenta la tabla de registros de RCV.
 
+## Sitio estático de gráficos
+
+La carpeta `static-site` contiene una versión estática que procesa el libro Excel en el navegador. El archivo seleccionado no se transmite ni se almacena en el sitio. Solo genera gráficos agregados de sexo, régimen y zonificación a partir de la hoja RCV.
+
+En Render, deja **Root Directory** vacío. Configura el **Build Command** como:
+
+    mkdir -p build && cp static-site/index.html static-site/app.js static-site/styles.css build/
+
+y el **Publish Directory** como `build`. No requiere Python ni un comando de inicio. El servicio solo publica los archivos estáticos; cada persona selecciona su propio libro en el navegador.
+
 ## Privacidad
 
 El servidor escucha solo en 127.0.0.1, no en la red local. No se registran términos de búsqueda en la consola. Mantén el equipo y la sesión protegidos; cualquier persona con acceso a este equipo y a la dirección local podría consultar los registros mientras el servidor esté activo.

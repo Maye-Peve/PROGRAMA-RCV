@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <meta name="description" content="Gráficos agregados de la hoja RCV, procesados en el navegador.">
+    <title>Programa RCV · Resumen estático</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Programa RCV">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <span><strong>Programa RCV</strong><small>Resumen estadístico</small></span>
+      </a>
+      <span class="static-badge"><i aria-hidden="true"></i> Sitio estático</span>
+    </header>
+
+    <main class="layout">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">VISTA GENERAL</p>
+          <h1>Distribución de la cohorte</h1>
+          <p class="intro-copy">Carga un archivo Excel para generar los gráficos de sexo, régimen y zonificación.</p>
+        </div>
+      </section>
+
+      <section class="privacy-note" aria-label="Privacidad del archivo">
+        <span class="privacy-icon" aria-hidden="true">⌂</span>
+        <p><strong>El archivo se procesa en este navegador.</strong> No se envía al sitio, no se guarda y no se incluyen registros individuales en los gráficos.</p>
+      </section>
+
+      <section class="file-panel" aria-labelledby="fileTitle">
+        <div class="file-heading">
+          <div>
+            <p class="eyebrow">ARCHIVO DE ORIGEN</p>
+            <h2 id="fileTitle">Seleccionar libro Excel</h2>
+          </div>
+          <span class="read-only-badge">Solo lectura</span>
+        </div>
+        <label class="file-picker" for="workbookInput">
+          <span class="file-icon" aria-hidden="true">XLSX</span>
+          <span class="file-copy"><strong id="fileName">Elige un archivo .xlsx</strong><small>Se leerá únicamente la hoja RCV y sus campos sexo, régimen y zonificación.</small></span>
+          <span class="choose-button">Seleccionar archivo</span>
+        </label>
+        <input id="workbookInput" class="visually-hidden" type="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12">
+        <div id="status" class="status" role="status" aria-live="polite">Elige el libro desde tu equipo para ver los gráficos.</div>
+      </section>
+
+      <section id="results" class="results" hidden aria-labelledby="resultsTitle">
+        <div class="results-heading">
+          <div>
+            <p class="eyebrow">RESULTADO</p>
+            <h2 id="resultsTitle">Distribución básica</h2>
+          </div>
+          <div class="record-total"><strong id="recordCount">0</strong><span>registros</span></div>
+        </div>
+        <div id="basicCharts" class="chart-grid"></div>
+        <p class="chart-note">Se agrupan valores que solo difieren en mayúsculas/minúsculas. Los porcentajes se calculan sobre las filas con contenido en RCV.</p>
+      </section>
+
+      <footer class="page-footer">
+        <span>Los datos del libro permanecen en el dispositivo desde el que se selecciona.</span>
+        <button id="clearButton" type="button" class="text-button" hidden>Quitar archivo y borrar gráficos</button>
+      </footer>
+    </main>
+  </body>
+</html>
