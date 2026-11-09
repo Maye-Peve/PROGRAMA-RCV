@@ -1,6 +1,6 @@
 # PROGRAMA-RCV
 
-Aplicación local de solo lectura para explorar la hoja RCV de un libro Excel. Los registros se leen en este equipo y se muestran en una interfaz de navegador servida únicamente en 127.0.0.1. El tablero incluye gráficos agregados de sexo, régimen y zonificación; los porcentajes incluyen los registros sin dato.
+Aplicación local de solo lectura para explorar la hoja RCV de un libro Excel. Los registros se leen en este equipo y se muestran en una interfaz de navegador servida únicamente en 127.0.0.1. El tablero incluye gráficos agregados de sexo, régimen, zonificación, faltantes generales de laboratorio y tomas dentro del período de seguimiento.
 
 La aplicación no edita el libro, no guarda copias de sus registros y no realiza solicitudes a servicios externos. Los datos se cargan en memoria mientras el servidor local está encendido. Desde la interfaz puedes seleccionar otro `.xlsx` o `.xlsm`; se lee por la conexión local y el libro no se guarda.
 
@@ -25,7 +25,7 @@ La aplicación usa la hoja RCV, conserva las fórmulas guardadas como valores po
 
 ## Sitio estático de gráficos
 
-La carpeta `static-site` contiene una versión estática que procesa el libro Excel en el navegador. El archivo seleccionado no se transmite ni se almacena en el sitio. Solo genera gráficos agregados de sexo, régimen y zonificación a partir de la hoja RCV.
+La carpeta `static-site` contiene una versión estática que procesa el libro Excel en el navegador. El archivo seleccionado no se transmite ni se almacena en el sitio. Genera gráficos agregados de sexo, régimen, zonificación, faltantes generales y laboratorios tomados o pendientes entre el 1 de julio de 2026 y la fecha actual. Las fechas 1800-01-01 y 1845-01-01 se consideran comodines sin toma. El análisis general de faltantes cuenta celdas vacías, errores de fórmula y códigos de no reporte identificados en el libro; conserva el cero como dato.
 
 En Render, deja **Root Directory** vacío. Configura el **Build Command** como:
 

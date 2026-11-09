@@ -8,6 +8,7 @@ import mimetypes
 import posixpath
 import re
 import threading
+import unicodedata
 import webbrowser
 import zipfile
 from collections import Counter
@@ -32,6 +33,45 @@ MAX_REQUEST_BYTES = 16_384
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 MAX_PAGE_SIZE = 100
 FILTER_COLUMN_IDS = ("C", "D", "E", "CD")
+LABORATORY_FIELDS = (
+    ("var27.creatinina", "Creatinina", {"99"}, None),
+    ("hemoglobina.glicosilada", "Hemoglobina glicosilada (HbA1c)", {"98", "99"}, None),
+    ("albuminuria-24horas", "Albuminuria 24 horas", {"9999"}, None),
+    ("creatinuria-rac", "Creatinuria / RAC", {"9999"}, None),
+    ("colesterol.total", "Colesterol total", {"999"}, None),
+    ("var32.hdl", "HDL", {"999"}, None),
+    ("triglicerios", "Triglicéridos", {"999"}, None),
+    ("var33.ldl", "LDL", {"999"}, None),
+    ("no-hdl", "No-HDL", {"999", "9999"}, None),
+    ("var34.pth", "PTH", {"9988"}, None),
+    ("tasa.de.filtracion.glomerularccghc", "TFG Cockcroft-Gault", {"999"}, None),
+    ("tasa.de.filtracion.glomerularckdepi", "TFG CKD-EPI", {"999"}, None),
+    ("depuraciondecreatinina", "Depuración de creatinina", {"99"}, None),
+    ("var59.hemoglobina", "Hemoglobina", {"98", "99"}, None),
+    ("var60.albumina.serica", "Albúmina sérica", {"98", "99"}, None),
+    ("var61.fosforo", "Fósforo", {"98", "99"}, None),
+    ("glucosa", "Glucosa", {"99"}, "fechaglucosa"),
+    ("uroanalisis", "Uroanálisis", {"99"}, None),
+)
+LABORATORY_PERIOD_FIELDS = (
+    ("var27_1.fecha.de.ultima.creatinina", "Creatinina"),
+    ("var30_1.fecha.de.la.ultima.creatinuria-rac", "RAC"),
+    ("var28_1.fecha.de.ultima.hemoglobina.glicosilada", "Hemoglobina glicosilada"),
+    ("var31_1.fecha.de.la.ultimo.colesterol.total", "Colesterol total"),
+    ("var32_1.fecha.de.la.ultimo.hdl", "HDL"),
+    ("var33_1.fecha.del.ultimo.ldl", "LDL"),
+)
+LABORATORY_PERIOD_START = date(2026, 7, 1)
+MISSING_DATE_VALUES = {"1800-01-01", "1845-01-01"}
+MISSING_ERROR_VALUES = {
+    "#ref!",
+    "#value!",
+    "#div/0!",
+    "#n/a",
+    "#name?",
+    "#num!",
+    "#null!",
+}
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
@@ -106,6 +146,67 @@ def _display_text(value) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _normalized_token(value) -> str:
+    if isinstance(value, datetime):
+        text = value.date().isoformat()
+    elif isinstance(value, date):
+        text = value.isoformat()
+    else:
+        text = _display_text(value)
+    if not text:
+        return ""
+    if re.match(r"^\d{4}-\d{2}-\d{2}T", text):
+        text = text[:10]
+    try:
+        numeric = float(text.replace(",", "."))
+        if math.isfinite(numeric) and numeric.is_integer():
+            return str(int(numeric))
+    except ValueError:
+        pass
+    return "".join(
+        character
+        for character in unicodedata.normalize("NFD", text.casefold())
+        if not unicodedata.combining(character)
+    )
+
+
+def _is_missing_lab_value(value, missing_codes: set[str]) -> bool:
+    token = _normalized_token(value)
+    return (
+        not token
+        or token in missing_codes
+        or token in MISSING_DATE_VALUES
+        or token in MISSING_ERROR_VALUES
+    )
+
+
+def _excel_date(value) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if value is None or isinstance(value, bool):
+        return None
+
+    text = _display_text(value)
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        pass
+    try:
+        serial = float(text.replace(",", "."))
+        converted = openpyxl.utils.datetime.from_excel(serial)
+        if isinstance(converted, datetime):
+            return converted.date()
+        if isinstance(converted, date):
+            return converted
+    except (TypeError, ValueError, OverflowError):
+        pass
+    return None
 
 
 def _choose_default_columns(columns: list[dict]) -> list[str]:
@@ -265,6 +366,8 @@ class WorkbookData:
         )
         self.filter_options = self._build_filter_options()
         self.basic_distributions = self._build_basic_distributions()
+        self.laboratory_missingness = self._build_laboratory_missingness()
+        self.laboratory_period_status = self._build_laboratory_period_status()
 
     def _build_basic_distributions(self) -> list[dict]:
         result = []
@@ -306,6 +409,129 @@ class WorkbookData:
             )
         return result
 
+    def _build_laboratory_missingness(self) -> list[dict]:
+        total = len(self.records)
+        result = []
+        normalized_headers = [
+            (
+                column,
+                "".join(
+                    character
+                    for character in unicodedata.normalize(
+                        "NFD", column["header"].casefold()
+                    )
+                    if not unicodedata.combining(character)
+                ),
+            )
+            for column in self.columns
+        ]
+
+        for header_hint, label, missing_codes, date_hint in LABORATORY_FIELDS:
+            column = next(
+                (
+                    column
+                    for column, normalized in normalized_headers
+                    if header_hint in normalized and "fecha" not in normalized
+                ),
+                None,
+            )
+            if column is None:
+                continue
+            date_column = None
+            if date_hint:
+                date_column = next(
+                    (
+                        candidate
+                        for candidate, normalized in normalized_headers
+                        if date_hint in normalized
+                    ),
+                    None,
+                )
+
+            missing = 0
+            for record in self.records:
+                value = record.get(column["id"])
+                is_missing = _is_missing_lab_value(value, missing_codes)
+                if (
+                    date_column
+                    and _normalized_token(value) == "99"
+                    and not _is_missing_lab_value(
+                        record.get(date_column["id"]), set()
+                    )
+                ):
+                    is_missing = False
+                if is_missing:
+                    missing += 1
+
+            result.append(
+                {
+                    "id": column["id"],
+                    "label": label,
+                    "total": total,
+                    "missing": missing,
+                    "available": total - missing,
+                    "percent": round((missing / total) * 100, 2) if total else 0,
+                }
+            )
+
+        return sorted(
+            result,
+            key=lambda item: (-item["missing"], item["label"].casefold()),
+        )
+
+    def _build_laboratory_period_status(self) -> list[dict]:
+        total = len(self.records)
+        period_end = date.today()
+        normalized_headers = [
+            (
+                column,
+                "".join(
+                    character
+                    for character in unicodedata.normalize(
+                        "NFD", column["header"].casefold()
+                    )
+                    if not unicodedata.combining(character)
+                ),
+            )
+            for column in self.columns
+        ]
+        result = []
+
+        for header_hint, label in LABORATORY_PERIOD_FIELDS:
+            column = next(
+                (
+                    column
+                    for column, normalized in normalized_headers
+                    if header_hint in normalized
+                ),
+                None,
+            )
+            if column is None:
+                continue
+            taken = sum(
+                1
+                for record in self.records
+                if (
+                    (observed_date := _excel_date(record.get(column["id"])))
+                    is not None
+                    and LABORATORY_PERIOD_START <= observed_date <= period_end
+                )
+            )
+            pending = total - taken
+            result.append(
+                {
+                    "id": column["id"],
+                    "label": label,
+                    "total": total,
+                    "taken": taken,
+                    "pending": pending,
+                    "taken_percent": round((taken / total) * 100, 2) if total else 0,
+                    "pending_percent": round((pending / total) * 100, 2) if total else 0,
+                }
+            )
+
+        return result
+
     def _build_filter_options(self) -> list[dict]:
         result = []
         for column_id in FILTER_COLUMN_IDS:
@@ -343,6 +569,10 @@ class WorkbookData:
             "default_columns": self.default_columns,
             "filters": self.filter_options,
             "basic_distributions": self.basic_distributions,
+            "laboratory_missingness": self.laboratory_missingness,
+            "laboratory_period_start": LABORATORY_PERIOD_START.isoformat(),
+            "laboratory_period_end": date.today().isoformat(),
+            "laboratory_period_status": self.laboratory_period_status,
             "last_modified": self.last_modified,
         }
 

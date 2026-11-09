@@ -82,6 +82,46 @@
         <div id="basicCharts" class="chart-grid" aria-live="polite"></div>
       </section>
 
+      <section class="chart-section" aria-labelledby="labPeriodTitle">
+        <div class="chart-section-heading">
+          <div>
+            <p class="eyebrow">SEGUIMIENTO DE LABORATORIOS</p>
+            <h2 id="labPeriodTitle">Tomados y pendientes</h2>
+          </div>
+          <p id="labPeriodRange">Desde el 1 de julio de 2026 hasta hoy.</p>
+        </div>
+        <article class="chart-card lab-card">
+          <div class="chart-card-heading">
+            <h3>Estado por laboratorio</h3>
+            <span>Proporción de los registros</span>
+          </div>
+          <div class="lab-period-legend" aria-label="Leyenda">
+            <span class="lab-legend-taken">Tomados</span>
+            <span class="lab-legend-pending">Pendientes</span>
+          </div>
+          <ul id="labPeriodCharts" class="chart-list lab-period-list" aria-live="polite"></ul>
+        </article>
+        <p class="chart-note">Tomado significa que la fecha del laboratorio está dentro del período. Pendiente incluye fechas vacías, fuera del período y los comodines 1800-01-01 y 1845-01-01.</p>
+      </section>
+
+      <section class="chart-section" aria-labelledby="labChartTitle">
+        <div class="chart-section-heading">
+          <div>
+            <p class="eyebrow">CALIDAD DE DATOS</p>
+            <h2 id="labChartTitle">Resultados de laboratorio faltantes</h2>
+          </div>
+          <p>Campos ordenados desde el mayor porcentaje sin resultado.</p>
+        </div>
+        <article class="chart-card lab-card">
+          <div class="chart-card-heading">
+            <h3>Registros sin resultado por laboratorio</h3>
+            <span>Conteo y porcentaje del total</span>
+          </div>
+          <ul id="labCharts" class="chart-list lab-chart-list" aria-live="polite"></ul>
+        </article>
+        <p class="chart-note">Se cuentan celdas vacías, errores de fórmula y los códigos de no reporte usados en el libro (98, 99, 999, 9999 y 9988). El cero se conserva como dato. Para glucosa, 99 se considera faltante solo cuando tampoco hay fecha de resultado.</p>
+      </section>
+
       <section class="data-panel">
         <div class="panel-heading">
           <div>

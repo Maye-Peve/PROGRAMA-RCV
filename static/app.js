@@ -49,6 +49,8 @@ function renderMetadata() {
   renderFilters();
   renderColumnOptions();
   renderBasicCharts();
+  renderLaboratoryPeriodChart();
+  renderLaboratoryChart();
 }
 
 function renderBasicCharts() {
@@ -100,6 +102,90 @@ function renderBasicCharts() {
     }
     card.append(heading, list);
     container.append(card);
+  }
+}
+
+function renderLaboratoryChart() {
+  const list = byId("labCharts");
+  list.replaceChildren();
+  for (const item of state.meta.laboratory_missingness || []) {
+    const row = document.createElement("li");
+    row.className = "chart-row";
+
+    const labels = document.createElement("div");
+    labels.className = "chart-row-labels";
+    const category = document.createElement("span");
+    category.className = "chart-category";
+    category.textContent = item.label;
+    const value = document.createElement("span");
+    value.className = "chart-value";
+    value.textContent =
+      formatNumber(item.missing) +
+      " · " +
+      new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(item.percent) +
+      "% sin resultado";
+    labels.append(category, value);
+
+    const track = document.createElement("div");
+    track.className = "chart-track";
+    track.setAttribute("aria-hidden", "true");
+    const bar = document.createElement("div");
+    bar.className = "chart-bar chart-bar-missing";
+    bar.style.width = Math.min(100, Math.max(0, item.percent)).toFixed(1) + "%";
+    track.append(bar);
+    row.append(labels, track);
+    list.append(row);
+  }
+}
+
+function renderLaboratoryPeriodChart() {
+  const list = byId("labPeriodCharts");
+  list.replaceChildren();
+  const dateLabel = (value) =>
+    new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "long", year: "numeric" })
+      .format(new Date(value + "T12:00:00"));
+  byId("labPeriodRange").textContent =
+    "Del " + dateLabel(state.meta.laboratory_period_start) + " al " + dateLabel(state.meta.laboratory_period_end) + ".";
+
+  for (const item of state.meta.laboratory_period_status || []) {
+    const row = document.createElement("li");
+    row.className = "lab-period-row";
+
+    const labels = document.createElement("div");
+    labels.className = "lab-period-labels";
+    const name = document.createElement("span");
+    name.className = "lab-period-name";
+    name.textContent = item.label;
+    const counts = document.createElement("div");
+    counts.className = "lab-period-counts";
+    const taken = document.createElement("span");
+    taken.className = "lab-taken-count";
+    taken.textContent =
+      "Tomados " + formatNumber(item.taken) + " · " +
+      new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(item.taken_percent) + "%";
+    const pending = document.createElement("span");
+    pending.className = "lab-pending-count";
+    pending.textContent =
+      "Pendientes " + formatNumber(item.pending) + " · " +
+      new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(item.pending_percent) + "%";
+    counts.append(taken, pending);
+    labels.append(name, counts);
+
+    const track = document.createElement("div");
+    track.className = "lab-period-track";
+    track.setAttribute(
+      "aria-label",
+      item.label + ": " + formatNumber(item.taken) + " tomados y " + formatNumber(item.pending) + " pendientes",
+    );
+    const takenBar = document.createElement("div");
+    takenBar.className = "lab-period-taken";
+    takenBar.style.width = item.taken_percent.toFixed(2) + "%";
+    const pendingBar = document.createElement("div");
+    pendingBar.className = "lab-period-pending";
+    pendingBar.style.width = item.pending_percent.toFixed(2) + "%";
+    track.append(takenBar, pendingBar);
+    row.append(labels, track);
+    list.append(row);
   }
 }
 

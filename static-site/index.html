@@ -23,7 +23,7 @@
         <div>
           <p class="eyebrow">VISTA GENERAL</p>
           <h1>Distribución de la cohorte</h1>
-          <p class="intro-copy">Carga un archivo Excel para generar los gráficos de sexo, régimen y zonificación.</p>
+          <p class="intro-copy">Carga un archivo Excel para ver la distribución básica y los resultados de laboratorio faltantes.</p>
         </div>
       </section>
 
@@ -42,7 +42,7 @@
         </div>
         <label class="file-picker" for="workbookInput">
           <span class="file-icon" aria-hidden="true">XLSX</span>
-          <span class="file-copy"><strong id="fileName">Elige un archivo .xlsx</strong><small>Se leerá únicamente la hoja RCV y sus campos sexo, régimen y zonificación.</small></span>
+          <span class="file-copy"><strong id="fileName">Elige un archivo .xlsx</strong><small>Se leerá únicamente la hoja RCV, sin enviar el archivo ni guardar registros.</small></span>
           <span class="choose-button">Seleccionar archivo</span>
         </label>
         <input id="workbookInput" class="visually-hidden" type="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12">
@@ -59,6 +59,44 @@
         </div>
         <div id="basicCharts" class="chart-grid"></div>
         <p class="chart-note">Se agrupan valores que solo difieren en mayúsculas/minúsculas. Los porcentajes se calculan sobre las filas con contenido en RCV.</p>
+        <section class="lab-section" aria-labelledby="labPeriodTitle">
+          <div class="lab-section-heading">
+            <div>
+              <p class="eyebrow">SEGUIMIENTO DE LABORATORIOS</p>
+              <h2 id="labPeriodTitle">Tomados y pendientes</h2>
+            </div>
+            <p id="labPeriodRange">Desde el 1 de julio de 2026 hasta hoy.</p>
+          </div>
+          <article class="chart-card lab-card">
+            <div class="chart-card-heading">
+              <h3>Estado por laboratorio</h3>
+              <span>Proporción de los registros</span>
+            </div>
+            <div class="lab-period-legend" aria-label="Leyenda">
+              <span class="lab-legend-taken">Tomados</span>
+              <span class="lab-legend-pending">Pendientes</span>
+            </div>
+            <ul id="labPeriodCharts" class="chart-list lab-period-list" aria-live="polite"></ul>
+          </article>
+          <p class="chart-note">Tomado significa que la fecha del laboratorio está dentro del período. Pendiente incluye fechas vacías, fuera del período y los comodines 1800-01-01 y 1845-01-01.</p>
+        </section>
+        <section class="lab-section" aria-labelledby="labTitle">
+          <div class="lab-section-heading">
+            <div>
+              <p class="eyebrow">CALIDAD DE DATOS</p>
+              <h2 id="labTitle">Resultados de laboratorio faltantes</h2>
+            </div>
+            <p>Campos ordenados desde el mayor porcentaje sin resultado.</p>
+          </div>
+          <article class="chart-card lab-card">
+            <div class="chart-card-heading">
+              <h3>Registros sin resultado por laboratorio</h3>
+              <span>Conteo y porcentaje del total</span>
+            </div>
+            <ul id="labCharts" class="chart-list lab-chart-list" aria-live="polite"></ul>
+          </article>
+          <p class="chart-note">Se cuentan celdas vacías, errores de fórmula y los códigos de no reporte usados en el libro (98, 99, 999, 9999 y 9988). El cero se conserva como dato. Para glucosa, 99 se considera faltante solo cuando tampoco hay fecha de resultado.</p>
+        </section>
       </section>
 
       <footer class="page-footer">
